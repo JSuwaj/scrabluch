@@ -1,7 +1,8 @@
 package wordProcessor
 
-import board.{ Board, PossibleLetter}
+import board.{Board, PossibleLetter}
 import requests.LettersAndWord
+import wordPointCalculator.WordPointCalculator
 import wordTree.{WordTree, WordTreeNode}
 
 class WordProcessor(wordTree: WordTree,var board: Board) {
@@ -240,10 +241,120 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
   }
 
 
+  def calculateConnectedWordsPointsVertical(word: PossibleWord) = {
+    def findFirstEmptyField(i: Int, j: Int): Int = {
+      if(i-1 >= 0 && !board.isEmpty(i-1,j)){
+        findFirstEmptyField(i-1,j)
+      }
+      else{
+        i
+      }
+    }
+
+    def findWord(i: Int, j: Int, word:String): String = {
+      if(i < board.getBoardSize && !board.isEmpty(i,j)){
+        findWord(i+1,j,word+board.getLetter(i,j))
+      }
+      else{
+        ""
+      }
+    }
+
+    var connectedWordPoints: Int = 0
+    for(i <- word.x until word.x+word.word.length){
+      if(board.isAdjacentHorizontally(i,word.y)){
+        val firstEmptyField = findFirstEmptyField(i,word.y)
+        val connectedWord = findWord(firstEmptyField,word.y,"")
+        if(connectedWord.length > 1){
+          connectedWordPoints+=WordPointCalculator.calculateWordPointWithBonusForOneLetter(connectedWord,firstEmptyField,word.y,isVertical = false,i-firstEmptyField)
+        }
+      }
+    }
+    connectedWordPoints
+  }
+
+  def calculateConnectedWordsPointsHorizontal(word: PossibleWord) = {
+    def findFirstEmptyField(i: Int, j: Int): Int = {
+      if(j-1 >= 0 && !board.isEmpty(i,j-1)){
+        findFirstEmptyField(i,j-1)
+      }
+      else{
+        j
+      }
+    }
+
+    def findWord(i: Int, j: Int,word:String): String = {
+      if(j < board.getBoardSize && !board.isEmpty(i,j)){
+        findWord(i,j+1,word+board.getLetter(i,j))
+      }
+      else{
+        ""
+      }
+    }
+
+    var connectedWordPoints: Int = 0
+    for(j <- word.y until word.y+word.word.length){
+      if(board.isAdjacentVertically(word.x,j)){
+        val firstEmptyField = findFirstEmptyField(word.x,j)
+        val connectedWord = findWord(word.x,firstEmptyField,"")
+        if(connectedWord.length > 1){
+          connectedWordPoints+=WordPointCalculator.calculateWordPointWithBonusForOneLetter(connectedWord,word.x,firstEmptyField,isVertical = true,j-firstEmptyField)
+        }
+      }
+    }
+    connectedWordPoints
+  }
+
+  def calculateConnectedWordsPoints(word: PossibleWord): Int = {
+    var connectedWordsPoints = 0
+    if (word.isVertical) {
+      connectedWordsPoints += calculateConnectedWordsPointsVertical(word)
+    }
+    else {
+      connectedWordsPoints += calculateConnectedWordsPointsHorizontal(word)
+    }
+    connectedWordsPoints
+  }
+
+  def updateBonusLetterMap(): Unit = {
+    for (i <- 0 until board.getBoardSize) {
+      for (j <- 0 until board.getBoardSize) {
+        if(!board.isEmpty(i,j)){
+          WordPointCalculator.updateLetterBonusBoard(i,j)
+        }
+      }
+    }
+    println()
+    board.printBoardWithBonusses()
+  }
+
+  def checkIfAllLettersUsed(word: PossibleWord): Boolean = {
+    var letterCounter=0
+    if(word.isVertical){
+      for(i <- word.x until word.x+word.word.length){
+        if(board.isEmpty(i,word.y)){
+          letterCounter+=1
+        }
+      }
+    }
+    else{
+      for(j <- word.y until word.y+word.word.length){
+        if(board.isEmpty(word.x,j)){
+          letterCounter+=1
+        }
+      }
+    }
+    if(letterCounter==playerLettersNumber){
+      return true
+    }
+    false
+  }
+
   def findAllPossibleWordsOnBoardFromLetters(letters: String): List[String] = {
     createPossibleLettersMap()
-    var possibleWords = List[String]()
-    val possibleLetterPlaces = findPossibleLetterPlaces()
+    updateBonusLetterMap()
+    var possibleWords = List[PossibleWord]()
+    val possibleLetterPlaces = findPossibleWordStartingPoints()
     for (i <- 0 until board.getBoardSize) {
       for (j <- 0 until board.getBoardSize) {
         if (possibleLetterPlaces(i)(j).vertical) {
@@ -254,16 +365,39 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
         }
       }
     }
-    println(possibleWords.sortBy(_.length))
-    possibleWords
+    for(word <- possibleWords){
+      if(word.word=="farbce"){
+        println("farbce")
+      }
+      word.points = WordPointCalculator.calculateWordPoints(word.word,word.x,word.y,word.isVertical,checkIfAllLettersUsed(word))
+      word.points+=calculateConnectedWordsPoints(word)
+    }
+    println(possibleWords.sortBy(-_.points))
+    println(possibleWords.length)
+    removeDuplicatedWords(possibleWords).map(_.word)
+    println(possibleWords.sortBy(_.word.length))
+    println(possibleWords.length)
+    possibleWords.map(_.word)
 
   }
 
-  def findWordsVertical(i: Int, j: Int, letters: String): List[String] = {
-    var possibleWords = List[String]()
+  def removeDuplicatedWords(words:List[PossibleWord]): List[PossibleWord] = {
+    words.groupBy(_.word).map(_._2.head).toList
+  }
+
+  def findAllWordsOnBoardFromLetters(boardArray: Array[Array[Char]],letters: String): List[String] = {
+    if(boardArray.length != board.getBoardSize || boardArray(0).length != board.getBoardSize){
+      return List[String]()
+    }
+    this.board.fillBoard(boardArray)
+    this.tryToFindWordFromLetters(letters)
+  }
+
+  def findWordsVertical(i: Int, j: Int, letters: String): List[PossibleWord] = {
+    var possibleWords = List[PossibleWord]()
     def getWords(node: WordTreeNode, word: String,lettersLeft: String,boardX: Int,boardY: Int,connected: Boolean): Unit = {
       if (node.isWord && !possibleWords.contains(word) && connected && (boardX>=board.getBoardSize || board.isEmpty(boardX,boardY))){
-        possibleWords = possibleWords :+ word
+        possibleWords = possibleWords :+ PossibleWord(word,isVertical = true,boardX-word.length,boardY)
       }
       if(lettersLeft.isEmpty){
         return
@@ -288,11 +422,11 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
     possibleWords
   }
 
-  def findWordsHorizontal(i: Int, j: Int, letters: String): List[String] = {
-    var possibleWords = List[String]()
+  def findWordsHorizontal(i: Int, j: Int, letters: String): List[PossibleWord] = {
+    var possibleWords = List[PossibleWord]()
     def getWords(node: WordTreeNode, word: String,lettersLeft: String,boardX: Int,boardY: Int,connected: Boolean): Unit = {
       if (node.isWord && !possibleWords.contains(word) && connected && (boardY>=board.getBoardSize ||board.isEmpty(boardX,boardY) )){
-        possibleWords = possibleWords :+ word
+        possibleWords = possibleWords :+ PossibleWord(word,isVertical = false,boardX,boardY-word.length)
       }
       if(lettersLeft.isEmpty){
         return
@@ -317,35 +451,62 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
     possibleWords
   }
 
-  def findPossibleLetterPlaces(): Array[Array[PossibleLetter]] = {
-    var possibleLetterPlaces = Array.ofDim[PossibleLetter](board.getBoardSize,board.getBoardSize)
+  def findPossibleWordStartingPoints(): Array[Array[PossibleLetter]] = {
+
+    def checkIfAnyEmptyPlaceRight(i: Int, j: Int): Boolean = {
+      if(j+1 < board.getBoardSize && board.isEmpty(i,j+1)){
+        return true
+      }
+      if(j+1 < board.getBoardSize && checkIfAnyEmptyPlaceRight(i,j+1)){
+        return true
+      }
+      false
+    }
+
+    def checkIfAnyEmptyPlaceDown(i: Int, j: Int): Boolean = {
+      if(i+1 < board.getBoardSize && board.isEmpty(i+1,j)){
+        return true
+      }
+      if(i+1 < board.getBoardSize && checkIfAnyEmptyPlaceDown(i+1,j)){
+        return true
+      }
+      false
+    }
+
+    val possibleWordStartingPoints = Array.ofDim[PossibleLetter](board.getBoardSize,board.getBoardSize)
     for(i <- 0 until board.getBoardSize){
       for(j <- 0 until board.getBoardSize){
-        possibleLetterPlaces(i)(j) = PossibleLetter(vertical = false,horizontal = false)
+        possibleWordStartingPoints(i)(j) = PossibleLetter(vertical = false,horizontal = false)
       }
     }
     for(i <- 0 until board.getBoardSize){
       for(j <- 0 until board.getBoardSize){
         if(!board.isEmpty(i,j)){
+          if(checkIfAnyEmptyPlaceRight(i,j)) {
+            possibleWordStartingPoints(i)(j).horizontal = true
+          }
+          if(checkIfAnyEmptyPlaceDown(i,j)) {
+            possibleWordStartingPoints(i)(j).vertical = true
+          }
           for(k <- 1 until playerLettersNumber+1){
             if (i - k >= 0 && board.isEmpty(i - k, j)) {
-              possibleLetterPlaces(i-k)(j).vertical = true
+              possibleWordStartingPoints(i-k)(j).vertical = true
             }
             if (i + k < board.getBoardSize && board.isEmpty(i + k, j)) {
-              possibleLetterPlaces(i+k)(j).vertical = true
+              possibleWordStartingPoints(i+k)(j).vertical = true
             }
             if (j - k >= 0 && board.isEmpty(i, j - k)) {
-              possibleLetterPlaces(i)(j-k).horizontal = true
+              possibleWordStartingPoints(i)(j-k).horizontal = true
             }
             if (j + k < board.getBoardSize && board.isEmpty(i, j + k)) {
-              possibleLetterPlaces(i)(j+k).horizontal = true
+              possibleWordStartingPoints(i)(j+k).horizontal = true
 
             }
           }
         }
       }
     }
-    possibleLetterPlaces
+    possibleWordStartingPoints
   }
 
 

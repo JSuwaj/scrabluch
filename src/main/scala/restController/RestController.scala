@@ -5,7 +5,7 @@ package restController
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Route
-import requests.{FittingLettersToEmptyPlaceInWord, LettersAndWord, WordFittingInBoard}
+import requests.{FittingLettersToEmptyPlaceInWord, LettersAndWord, WordFittingInBoard, WordsOnBoard}
 import wordProcessor.WordProcessor
 import wordTree.WordTree
 import JsonFormats._
@@ -54,6 +54,12 @@ class RestController(wordTree: WordTree,wordProcessor: WordProcessor) {
       put {
         entity(as[FittingLettersToEmptyPlaceInWord]) { fittingLettersToEmptyPlaceInWord =>
           complete(serializeList(wordProcessor.findLettersToFitInEmptyPlaceInWord(fittingLettersToEmptyPlaceInWord.leftWord,fittingLettersToEmptyPlaceInWord.rightWord).map(_.toString)))
+        }
+      }
+    } ~ path("findWordsOnBoard"){
+      put {
+        entity(as[WordsOnBoard]) { wordsOnBoard =>
+          complete(serializeList(wordProcessor.findAllWordsOnBoardFromLetters(wordsOnBoard.board,wordsOnBoard.letters).map(_.toString)))
         }
       }
     }
