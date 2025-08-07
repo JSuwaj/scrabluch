@@ -13,6 +13,7 @@ lazy val root = (project in file("."))
       "com.typesafe.akka" %% "akka-actor-typed" % "2.6.14",
       "com.typesafe.akka" %% "akka-http-spray-json" % "10.2.4",
       "org.scalatest" %% "scalatest" % "3.2.9" % "test",
-      "com.typesafe.akka" %% "akka-http-testkit" % "10.2.4" % "test"
+      "com.typesafe.akka" %% "akka-http-testkit" % "10.2.4" % "test",
+      "ch.megard" %% "akka-http-cors" % "1.1.1",
     )
   )

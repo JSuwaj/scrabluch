@@ -1,5 +1,6 @@
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.adapter.TypedActorRefOps
 import akka.http.scaladsl.Http
 import dictionaryLoader.DictionaryLoader
 import restController.RestController
@@ -24,6 +25,7 @@ object Main extends App{
   //create rest controller
 
   implicit val system = ActorSystem(Behaviors.empty, "my-system")
+  implicit val classicSystem = system.toClassic
   implicit val executionContext = system.executionContext
   val wordProcessor = new WordProcessor(wordTree,Board(15))
   val restController = new RestController(wordTree,wordProcessor)

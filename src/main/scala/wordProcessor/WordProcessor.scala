@@ -350,7 +350,7 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
     false
   }
 
-  def findAllPossibleWordsOnBoardFromLetters(letters: String): List[String] = {
+  def findAllPossibleWordsOnBoardFromLetters(letters: String): List[PossibleWord] = {
     createPossibleLettersMap()
     updateBonusLetterMap()
     var possibleWords = List[PossibleWord]()
@@ -377,7 +377,7 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
     removeDuplicatedWords(possibleWords).map(_.word)
     println(possibleWords.sortBy(_.word.length))
     println(possibleWords.length)
-    possibleWords.map(_.word)
+    possibleWords.sortBy(-_.points)
 
   }
 
@@ -385,12 +385,12 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
     words.groupBy(_.word).map(_._2.head).toList
   }
 
-  def findAllWordsOnBoardFromLetters(boardArray: Array[Array[Char]],letters: String): List[String] = {
+  def findAllWordsOnBoardFromLetters(boardArray: Array[Array[Char]],letters: String): List[PossibleWord] = {
     if(boardArray.length != board.getBoardSize || boardArray(0).length != board.getBoardSize){
-      return List[String]()
+      return List[PossibleWord]()
     }
     this.board.fillBoard(boardArray)
-    this.tryToFindWordFromLetters(letters)
+    this.findAllPossibleWordsOnBoardFromLetters(letters)
   }
 
   def findWordsVertical(i: Int, j: Int, letters: String): List[PossibleWord] = {
@@ -417,6 +417,9 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
         }
       }
 
+    }
+    if(i>0 && !board.isEmpty(i-1,j)){
+      return possibleWords
     }
     getWords(wordTree.getRoot, "",letters,i,j,connected = false)
     possibleWords
@@ -446,6 +449,9 @@ class WordProcessor(wordTree: WordTree,var board: Board) {
         }
       }
 
+    }
+    if(j>0 && !board.isEmpty(i,j-1)){
+      return possibleWords
     }
     getWords(wordTree.getRoot, "",letters,i,j,connected = false)
     possibleWords

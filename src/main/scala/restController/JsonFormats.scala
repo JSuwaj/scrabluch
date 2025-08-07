@@ -10,4 +10,5 @@ object JsonFormats {
   implicit val wordFittingInBoardFormat = jsonFormat4(requests.WordFittingInBoard)
   implicit val findLettersToFitInEmptyPlaceInWordFormat = jsonFormat2(requests.FittingLettersToEmptyPlaceInWord)
   implicit val wordsOnBoardFormat = jsonFormat2(requests.WordsOnBoard)
+  implicit val wordsFromLettersFormat = jsonFormat1(requests.WordsFromLetters)
 }
